@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tomorrow.io | Altos Intelligence Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
@@ -28,6 +28,7 @@
             position: relative;
             width: 100%;
             height: 280px;
+            min-height: 280px;
         }
 
         .altos-typing::after {
@@ -43,13 +44,9 @@
         .warning { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
         .nominal { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 
-        .nav-link.active {
-            @apply bg-blue-50 text-blue-700 font-bold border-r-4 border-blue-600;
-        }
-
-        /* Side Panel Transitions */
+        /* Side Panel Transitions - Sync with JS (350ms) */
         .side-panel {
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
         }
 
         .side-panel.hidden-panel {
@@ -91,7 +88,20 @@
     <aside id="sidebar" class="sidebar-container w-64 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 z-50 transition-all duration-300">
         <div class="p-6 mb-4 flex items-center justify-center lg:justify-start">
             <div class="flex items-center space-x-2">
-                <div class="w-8 h-8 bg-[#0052FF] rounded-lg flex items-center justify-center font-bold text-white shadow-lg flex-shrink-0">T</div>
+                <!-- Tomorrow.io Logo Inline SVG -->
+                <div class="flex-shrink-0">
+                    <svg width="158" height="36" viewBox="0 0 158 36" fill="none" xmlns="http://www.w3.org/2000/svg" class="h-8 w-auto">
+                        <path d="M40.355 10.952h-2.903v16.142h2.903V10.952zM38.903 6.012a1.742 1.742 0 100 3.484 1.742 1.742 0 000-3.484zM53.125 10.662c-4.788 0-8.21 3.745-8.21 8.326 0 4.58 3.422 8.326 8.21 8.326 4.787 0 8.21-3.745 8.21-8.326 0-4.58-3.423-8.326-8.21-8.326zm0 13.926c-3.134 0-5.31-2.438-5.31-5.6 0-3.162 2.176-5.6 5.31-5.6 3.134 0 5.31 2.438 5.31 5.6 0 3.162-2.176 5.6-5.31 5.6zM6.924 10.952H0v2.611h2.007V27.094h2.909V13.563H6.924V10.952zM16.593 10.662c-4.788 0-8.21 3.745-8.21 8.326 0 4.58 3.422 8.326 8.21 8.326 4.787 0 8.21-3.745 8.21-8.326 0-4.58-3.423-8.326-8.21-8.326zm0 13.926c-3.134 0-5.31-2.438-5.31-5.6 0-3.162 2.176-5.6 5.31-5.6 3.134 0 5.31 2.438 5.31 5.6 0 3.162-2.176 5.6-5.31 5.6zM26.262 10.662c-1.914 0-3.6 0.61-4.787 1.625V10.952h-2.9v16.142h2.9v-8.47c0-2.873 1.944-5.02 4.41-5.02 2.437 0 4.148 1.8 4.148 4.498v8.992h2.903v-9.311c0-4.323-2.612-7.132-6.674-7.132zM75.14 10.952c-1.915 0-3.601 0.61-4.787 1.625V10.952h-2.903v16.142h2.903v-8.47c0-2.873 1.944-5.02 4.41-5.02 2.438 0 4.149 1.8 4.149 4.498v8.992h2.903v-9.311c0-4.323-2.611-7.132-6.674-7.132zM87.808 10.662c-4.787 0-8.21 3.745-8.21 8.326 0 4.58 3.423 8.326 8.21 8.326 4.788 0 8.21-3.745 8.21-8.326 0-4.58-3.422-8.326-8.21-8.326zm0 13.926c-3.133 0-5.309-2.438-5.309-5.6 0-3.162 2.176-5.6 5.31-5.6 3.133 0 5.31 2.438 5.31 5.6 0 3.162-2.177 5.6-5.31 5.6zM102.32 23.498c-2.321 0-4.004-1.654-4.004-4.266 0-2.611 1.683-4.265 4.004-4.265 2.32 0 4.003 1.654 4.003 4.265 0 2.612-1.683 4.266-4.003 4.266zm0 3.511c4.526 0 7.37-3.163 7.37-7.777 0-4.613-2.844-7.776-7.37-7.776s-7.371 3.163-7.371 7.776c0 4.614 2.845 7.777 7.37 7.777zM111.956 24.34a1.742 1.742 0 100 3.484 1.742 1.742 0 000-3.484zM119.501 10.952h-2.902v16.142h2.902V10.952zM118.049 6.012a1.742 1.742 0 100 3.484 1.742 1.742 0 000-3.484zM132.27 10.662c-4.788 0-8.21 3.745-8.21 8.326 0 4.58 3.422 8.326 8.21 8.326 4.787 0 8.21-3.745 8.21-8.326 0-4.58-3.422-8.326-8.21-8.326zm0 13.926c-3.134 0-5.309-2.438-5.309-5.6 0-3.162 2.175-5.6 5.31-5.6 3.133 0 5.309 2.438 5.309 5.6 0 3.162-2.176 5.6-5.31 5.6z" fill="#0F172A"/>
+                        <path d="M141.69 24.195c-1.393 0-2.403 1.01-2.403 2.403 0 1.393 1.01 2.403 2.403 2.403s2.403-1.01 2.403-2.403c0-1.393-1.01-2.403-2.403-2.403zm0 5.815c-1.915 0-3.421-1.506-3.421-3.412s1.506-3.411 3.42-3.411c1.915 0 3.422 1.506 3.422 3.411s-1.507 3.412-3.422 3.412z" fill="#0F172A"/>
+                        <path d="M11.967 35.801c-.3 0-.597-.081-.863-.237a4.918 4.918 0 01-1.282-1.017c-2.443-2.417-3.957-5.744-4.24-9.33-.024-.31.066-.619.255-.867.189-.248.463-.408.766-.452l.211-.03c.31-.044.622.046.869.25.248.204.409.502.453.811.233 2.943 1.474 5.673 3.478 7.656.242.24.364.56.34.887a1.14 1.14 0 01-.453.834c-.2.15-.436.23-.679.231l.085.264z" fill="#0052FF"/>
+                        <path d="M12.643 36.662c-.29 0-.573-.105-.796-.3c-.223-.196-.363-.467-.393-.761a1.13 1.13 0 01.32-.888 1.13 1.13 0 01.888-.323c.294.03.565.17.761.393.195.223.3.506.3.796 0 .307-.122.602-.339.819a1.15 1.15 0 01-.819.339l.078-.075z" fill="#0052FF"/>
+                        <path d="M18.847 28.537c-.305 0-.59-.125-.796-.347-2.368-2.55-3.665-5.903-3.651-9.439v-.015a1.15 1.15 0 011.15-1.15h.301c.305 0 .59.125.796.347.206.222.317.514.312.817l-.01 2.339c-.015 2.503.905 4.882 2.583 6.69.21.228.324.532.317.844a1.14 1.14 0 01-.462.827c-.201.154-.448.237-.701.237l.161-.15z" fill="#0052FF"/>
+                        <path d="M12.643 36.662c-.307 0-.602-.122-.819-.339-.217-.217-.339-.512-.339-.819s.122-.602.339-.819c.217-.217.512-.339.819-.339s.602.122.819.339a1.16 1.16 0 010 1.638 1.15 1.15 0 01-.819.339z" fill="#0052FF"/>
+                        <path d="M1.336 19.431c-.008-.287.072-.571.228-.813.157-.241.383-.429.65-.537l.081-.033c.318-.128.67-.107.97.058.3.165.513.456.586.801.398 1.868.167 3.824-.65 5.509a1.14 1.14 0 01-.84.66c-.322.043-.645-.067-.887-.301-.242-.234-.368-.558-.348-.891a4.92 4.92 0 01.326-1.503c.535-1.107.687-2.392.425-3.62l.3-.67z" fill="#0052FF"/>
+                        <path d="M12.643 36.662c-.307 0-.602-.122-.819-.339a1.16 1.16 0 010-1.638c.217-.217.512-.339.819-.339s.602.122.819.339a1.16 1.16 0 010 1.638c-.217.217-.512.339-.819.339z" fill="#0052FF"/>
+                        <path d="M141.69 10.952c-2.612 0-4.728 2.117-4.728 4.729s2.116 4.728 4.728 4.728 4.729-2.116 4.729-4.728-2.117-4.729-4.729-4.729z" fill="#0052FF"/>
+                    </svg>
+                </div>
                 <span class="sidebar-label text-xl font-extrabold tracking-tighter text-[#0F172A]">tomorrow.io</span>
             </div>
         </div>
@@ -130,7 +140,6 @@
 
     <!-- Main Workspace -->
     <main id="workspace" class="flex-1 flex flex-col relative bg-white overflow-hidden transition-all duration-300">
-        
         <!-- Header -->
         <header class="h-16 lg:h-20 border-b border-slate-100 flex items-center justify-between px-6 lg:px-8 flex-shrink-0">
             <div class="flex items-center space-x-4">
@@ -153,11 +162,7 @@
                     <div class="flex-1 space-y-6 overflow-hidden">
                         <div class="p-1 space-y-6">
                             <div id="initial-text" class="text-slate-800 text-base lg:text-xl font-semibold leading-relaxed altos-typing"></div>
-                            
-                            <div id="initial-actions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-500">
-                                <!-- Populated by JS -->
-                            </div>
-
+                            <div id="initial-actions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-500"></div>
                             <div id="additional-briefing" class="hidden space-y-4">
                                 <div class="p-4 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100 flex items-start space-x-4">
                                     <i data-lucide="info" class="w-5 h-5 text-blue-600 flex-shrink-0 mt-1"></i>
@@ -193,7 +198,7 @@
         </div>
     </main>
 
-    <!-- Context Panel (Independent Navigation) -->
+    <!-- Context Panel -->
     <div id="context-panel" class="side-panel hidden-panel fixed inset-0 lg:relative lg:inset-auto lg:w-[45%] h-full bg-white border-l border-slate-200 flex flex-col flex-shrink-0 z-[60]">
         <header class="h-16 lg:h-20 border-b border-slate-200 px-6 lg:px-8 flex items-center justify-between bg-white flex-shrink-0">
             <div class="flex items-center space-x-3 overflow-hidden">
@@ -203,23 +208,18 @@
             </div>
             <button onclick="closeContext()" class="p-2 hover:bg-slate-100 rounded-lg text-slate-400 transition-all"><i data-lucide="x" class="w-6 h-6"></i></button>
         </header>
-
-        <div class="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8" id="panel-content">
-            <!-- Dynamic Content -->
-        </div>
+        <div class="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8" id="panel-content"></div>
     </div>
 
     <!-- Templates -->
     <template id="tpl-matrix">
         <div class="space-y-8 animate-in slide-in-from-right-10 duration-500">
-            <!-- New Distribution Chart for the Matrix View -->
             <div class="glass-card p-6">
-                 <h4 class="font-bold text-sm uppercase tracking-widest mb-4">Fleet Severity Breakdown</h4>
-                 <div class="chart-container"><canvas id="fleetDistChart"></canvas></div>
+                 <h4 class="font-bold text-sm uppercase tracking-widest mb-4 text-slate-400">Fleet Severity Distribution</h4>
+                 <div class="chart-container" id="fleet-dist-mount"></div>
             </div>
-
             <div class="glass-card p-6">
-                <h4 class="font-bold text-sm uppercase tracking-widest mb-6">Risk Priority Matrix</h4>
+                <h4 class="font-bold text-sm uppercase tracking-widest mb-6 text-slate-400">Risk Priority Matrix</h4>
                 <div class="relative w-full aspect-square bg-slate-50 border border-slate-100 rounded-3xl overflow-hidden shadow-inner">
                     <div class="absolute inset-0 grid grid-cols-2 grid-rows-2 opacity-25">
                         <div class="border-r border-b border-slate-300 bg-amber-100"></div>
@@ -229,10 +229,6 @@
                     </div>
                     <div id="matrix-points"></div>
                 </div>
-            </div>
-            <div class="p-6 bg-[#0F172A] text-white rounded-3xl">
-                <h5 class="text-[10px] font-black uppercase tracking-widest mb-2 text-slate-400">Synthesis Hub</h5>
-                <p class="text-sm leading-relaxed font-medium">I've isolated 5 sites with immediate threshold breaches. Miami and New Orleans are the primary outliers.</p>
             </div>
         </div>
     </template>
@@ -267,8 +263,8 @@
             </div>
             <div id="explorer-viz" class="hidden space-y-6">
                 <div class="glass-card p-6">
-                    <h4 class="text-xs font-bold uppercase tracking-widest mb-4">Climatological Comparison</h4>
-                    <div class="chart-container"><canvas id="locChart"></canvas></div>
+                    <h4 class="text-xs font-bold uppercase tracking-widest mb-4 text-slate-400">V4 Forecast vs Historical Climatology</h4>
+                    <div class="chart-container" id="loc-chart-mount"></div>
                 </div>
                 <div id="explorer-guidance-box" class="p-6 bg-[#0F172A] text-white rounded-3xl"></div>
             </div>
@@ -280,7 +276,7 @@
             mia: { title: 'Miami Port Terminal', badge: '<span class="risk-pill critical">Critical</span>', metric: '58 mph', metricLabel: 'Wind Gust', prob: '92', guidance: 'Immediate shutdown. Secure all crane gantry systems.', forecast: [22, 28, 45, 58, 52, 40, 32, 25], avg: [18, 19, 21, 22, 21, 20, 19, 18], icon: 'wind', x: '15%', y: '15%' },
             msy: { title: 'New Orleans Terminal', badge: '<span class="risk-pill critical">Critical</span>', metric: '4.2 in', metricLabel: 'Storm Surge', prob: '88', guidance: 'Deploy dock barriers. Verify perimeter water sensors.', forecast: [0.5, 1.2, 2.8, 4.2, 3.8, 2.5, 1.5, 0.8], avg: [0.2, 0.3, 0.4, 0.5, 0.4, 0.3, 0.2, 0.2], icon: 'waves', x: '25%', y: '25%' },
             hou: { title: 'Houston Logistics', badge: '<span class="risk-pill warning">Warning</span>', metric: '1.2 in/h', metricLabel: 'Precipitation', prob: '85', guidance: 'Deploy lightning site team. Prepare sandbags for Sector B.', forecast: [8, 12, 18, 24, 32, 28, 20, 15], avg: [12, 13, 14, 15, 14, 13, 12, 11], icon: 'cloud-lightning', x: '42%', y: '35%' },
-            ord: { title: 'Chicago Hub', badge: '<span class="risk-pill warning">Warning</span>', metric: '0.5 in', metricLabel: 'Ice Accrual', prob: '72', guidance: 'Initiate de-icing on loading docks. Suspend shift 3 outdoor duty.', forecast: [0.1, 0.2, 0.4, 0.5, 0.4, 0.3, 0.2, 0.1], avg: [0.0, 0.1, 0.1, 0.2, 0.1, 0.1, 0.0, 0.0], icon: 'thermometer-snowflake', x: '45%', y: '45%' },
+            ord: { title: 'Chicago Hub', badge: '<span class="risk-pill warning">Warning</span>', metric: '0.5 in', metricLabel: 'Ice Accrual', prob: '72', guidance: 'Initiate de-icing on loading docks. Suspend shift 3 outdoor duty.', forecast: [0.1, 0.2, 0.4, 0.5, 0.4, 0.3, 0.2, 0.1], avg: [0.0, 0.1, 0.1, 0.2, 0.1, 0.1, 0.0, 0.0], icon: 'snowflake', x: '45%', y: '45%' },
             lax: { title: 'Los Angeles Dist.', badge: '<span class="risk-pill warning">Warning</span>', metric: '12%', metricLabel: 'Humidity (Fire)', prob: '68', guidance: 'Red flag protocol active. Clean all air intake filters.', forecast: [25, 20, 15, 12, 14, 18, 22, 28], avg: [45, 42, 40, 38, 40, 42, 45, 48], icon: 'flame', x: '60%', y: '55%' }
         };
 
@@ -304,14 +300,23 @@
             }, 300);
         }
 
+        function onTransitionEnd(element, callback) {
+            const handle = (e) => {
+                if (e.target !== element) return;
+                element.removeEventListener('transitionend', handle);
+                callback();
+            };
+            element.addEventListener('transitionend', handle);
+        }
+
         function switchTab(tab) {
-            currentView = tab;
             const chatWindow = document.getElementById('main-chat');
             const panel = document.getElementById('context-panel');
             const btns = document.querySelectorAll('.nav-btn');
             
             btns.forEach(b => b.classList.remove('bg-blue-50', 'text-blue-700', 'font-bold', 'border-r-4', 'border-blue-600'));
-            document.getElementById(`btn-${tab}`).classList.add('bg-blue-50', 'text-blue-700', 'font-bold', 'border-r-4', 'border-blue-600');
+            const activeBtn = document.getElementById(`btn-${tab}`);
+            if (activeBtn) activeBtn.classList.add('bg-blue-50', 'text-blue-700', 'font-bold', 'border-r-4', 'border-blue-600');
 
             if (tab === 'chat') {
                 chatWindow.classList.remove('hidden');
@@ -328,6 +333,7 @@
             const content = document.getElementById('panel-content');
             const title = document.getElementById('panel-title');
             
+            if (!panel || !content) return;
             panel.classList.remove('hidden-panel');
             content.innerHTML = '';
             
@@ -335,7 +341,7 @@
                 title.innerText = 'Risk Priority Matrix';
                 content.innerHTML = document.getElementById('tpl-matrix').innerHTML;
                 populateMatrixPoints();
-                setTimeout(renderFleetDistribution, 50); // Ensure DOM is ready
+                onTransitionEnd(panel, () => renderFleetDistribution());
             } else if (type === 'fleet') {
                 title.innerText = 'Fleet Status';
                 content.innerHTML = document.getElementById('tpl-fleet').innerHTML;
@@ -345,23 +351,23 @@
                 content.innerHTML = document.getElementById('tpl-explorer').innerHTML;
                 populateExplorerSelect();
             }
-            lucide.createIcons();
+            if (window.lucide) lucide.createIcons();
         }
 
         function renderFleetDistribution() {
+            const mount = document.getElementById('fleet-dist-mount');
+            if (!mount || typeof Chart === 'undefined') return;
+            mount.innerHTML = '<canvas id="fleetDistChart"></canvas>';
             const canvas = document.getElementById('fleetDistChart');
-            if (!canvas) return;
             const ctx = canvas.getContext('2d');
             
-            if (fleetDistChart) fleetDistChart.destroy();
-            
-            fleetDistChart = new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['Critical', 'Warning', 'Nominal'],
                     datasets: [{
                         data: [2, 3, 137],
-                        backgroundColor: ['#ef4444', '#f97316', '#10b981'],
+                        backgroundColor: ['#EF4444', '#F97316', '#10B981'],
                         borderRadius: 8,
                         barThickness: 50
                     }]
@@ -371,7 +377,7 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { weight: 'bold' } } },
+                        y: { beginAtZero: true, grid: { color: '#F1F5F9' }, ticks: { font: { weight: 'bold' } } },
                         x: { grid: { display: false }, ticks: { font: { weight: 'bold' } } }
                     }
                 }
@@ -423,6 +429,7 @@
         function openLocationDetail(id) {
             const data = FLEET_DATA[id];
             const content = document.getElementById('panel-content');
+            const panel = document.getElementById('context-panel');
             if (!data || !content) return;
 
             if (!data.forecast) {
@@ -430,6 +437,7 @@
                 return;
             }
 
+            panel.classList.remove('hidden-panel');
             document.getElementById('panel-title').innerText = data.title;
             document.getElementById('panel-badge').innerHTML = data.badge;
             
@@ -441,44 +449,89 @@
                 content.innerHTML = `
                     <div class="space-y-6 animate-in fade-in duration-500">
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="glass-card p-5"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Peak</p><p class="text-2xl font-black">${data.metric}</p></div>
-                            <div class="glass-card p-5"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Prob</p><p class="text-2xl font-black">${data.prob}%</p></div>
+                            <div class="glass-card p-5"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Peak Forecast</p><p class="text-2xl font-black text-slate-900">${data.metric}</p></div>
+                            <div class="glass-card p-5"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Prob</p><p class="text-2xl font-black text-slate-900">${data.prob}%</p></div>
                         </div>
-                        <div class="glass-card p-6"><div class="chart-container"><canvas id="locChart"></canvas></div></div>
+                        <div class="glass-card p-6">
+                            <div class="chart-container" id="loc-chart-mount"></div>
+                        </div>
                         <div class="p-6 bg-[#0F172A] text-white rounded-3xl" id="guidance-box"><p class="text-sm">${data.guidance}</p></div>
                     </div>
                 `;
             }
 
-            lucide.createIcons();
-            setTimeout(() => renderLocChart(data), 50);
+            if (window.lucide) lucide.createIcons();
+            
+            // Critical: Wait for transition to end before rendering
+            onTransitionEnd(panel, () => renderLocChart(data));
         }
 
         function renderLocChart(data) {
+            const mount = document.getElementById('loc-chart-mount');
+            if (!mount || typeof Chart === 'undefined') return;
+            
+            mount.innerHTML = '<canvas id="locChart"></canvas>';
             const canvas = document.getElementById('locChart');
-            if (!canvas) return;
             const ctx = canvas.getContext('2d');
             
-            if (activeChart) activeChart.destroy();
-            
-            const color = data.badge.includes('critical') ? '#ef4444' : '#f97316';
+            const color = data.badge.includes('critical') ? '#EF4444' : '#F97316';
+            const labels = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
             
             activeChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: data.labels,
+                    labels: labels,
                     datasets: [
-                        { label: 'Forecast', data: data.forecast, borderColor: color, borderWidth: 4, tension: 0.4, fill: true, backgroundColor: color + '10' },
-                        { label: 'Historical Avg', data: data.avg, borderColor: '#cbd5e1', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, tension: 0.4 }
+                        { 
+                            label: 'V4 Forecast', 
+                            data: data.forecast, 
+                            borderColor: color, 
+                            borderWidth: 5, 
+                            tension: 0.35, 
+                            fill: true, 
+                            backgroundColor: color + '22',
+                            pointRadius: 6,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: '#FFFFFF',
+                            pointBorderColor: color,
+                            pointBorderWidth: 2
+                        },
+                        { 
+                            label: 'Historical Climatology', 
+                            data: data.avg, 
+                            borderColor: '#94A3B8', 
+                            borderDash: [8, 4], 
+                            borderWidth: 2, 
+                            pointRadius: 0, 
+                            tension: 0.35 
+                        }
                     ]
                 },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } }, 
+                    devicePixelRatio: 2,
+                    animation: { duration: 600 },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: { 
+                            enabled: true,
+                            backgroundColor: '#0F172A',
+                            titleFont: { size: 11 },
+                            bodyFont: { size: 11 },
+                            padding: 10
+                        }
+                    }, 
                     scales: { 
-                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { weight: 'bold', size: 10 } } }, 
-                        x: { grid: { display: false }, ticks: { font: { weight: 'bold', size: 10 } } } 
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: '#F1F5F9', drawTicks: false }, 
+                            ticks: { font: { weight: 'bold', size: 10 }, color: '#64748B', padding: 10 } 
+                        }, 
+                        x: { 
+                            grid: { display: false }, 
+                            ticks: { font: { weight: 'bold', size: 10 }, color: '#64748B', padding: 10 } 
+                        } 
                     } 
                 }
             });
@@ -505,7 +558,7 @@
                         });
                     }
                     document.getElementById('additional-briefing')?.classList.remove('hidden');
-                    lucide.createIcons();
+                    if (window.lucide) lucide.createIcons();
                     scrollChat();
                 }
             }, 15);
@@ -525,7 +578,7 @@
         function scrollChat() { const win = document.getElementById('chat-window'); if (win) win.scrollTop = win.scrollHeight; }
 
         initLibraries(() => { 
-            lucide.createIcons(); 
+            if (window.lucide) lucide.createIcons(); 
             simulateAltos(); 
         });
     </script>
