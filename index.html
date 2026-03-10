@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tomorrow.io | Altos Intelligence Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Chosen Palette: Tomorrow.io Enterprise (Navy #0F172A, Primary Blue #0052FF, Slate #F8FAFC) -->
+    <!-- Application Structure Plan: 
+         - Thematic Dashboard centered on synthesis. 
+         - Top: Altos Chat Assistant for immediate "Cognitive Synthesis".
+         - Mid: Risk Priority Matrix (Severity x Likelihood) and Fleet-wide distribution.
+         - Bottom: Contextual Drill-down with historical benchmarking (V2 vs V4 data).
+         - Navigation: Side-bar with active state handling to different sections.
+    -->
+    <!-- Visualization & Content Choices:
+         - Altos Chat: Progressive text rendering simulation (SSE behavior).
+         - Risk Matrix: 2D Grid visualizing the PRD's Risk Score logic.
+         - Forecast Charts: Multi-axis Chart.js with historical dashed line overlays.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; }
+
+        .glass-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border-radius: 1.5rem;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 320px;
+        }
+
+        .altos-typing::after {
+            content: '|';
+            animation: blink 1s step-start infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .risk-pill {
+            @apply px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider;
+        }
+        .critical { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .warning { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+        .nominal { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .nav-link.active {
+            @apply bg-blue-50 text-blue-700 font-semibold;
+        }
+
+        /* Matrix Bubble Pulse */
+        .bubble-pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-[#F8FAFC] text-[#0F172A] flex h-screen overflow-hidden">
+
+    <!-- Global Navigation -->
+    <aside class="w-64 bg-white border-r border-slate-200 hidden lg:flex flex-col flex-shrink-0 z-50">
+        <div class="p-6 mb-4">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 bg-[#0052FF] rounded flex items-center justify-center font-bold text-white">T</div>
+                <span class="text-xl font-bold tracking-tight">tomorrow.io</span>
+            </div>
+        </div>
+        
+        <nav class="flex-1 px-4 space-y-1">
+            <a href="#dashboard" onclick="switchTab('dashboard')" class="nav-link active flex items-center space-x-3 px-3 py-2.5 rounded-xl transition-all">
+                <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                <span>Operations Hub</span>
+            </a>
+            <a href="#matrix" onclick="switchTab('matrix')" class="nav-link flex items-center space-x-3 px-3 py-2.5 rounded-xl text-slate-500 hover:bg-slate-50 transition-all">
+                <i data-lucide="grid-3x3" class="w-5 h-5"></i>
+                <span>Risk Matrix</span>
+            </a>
+            <a href="#fleet" onclick="switchTab('fleet')" class="nav-link flex items-center space-x-3 px-3 py-2.5 rounded-xl text-slate-500 hover:bg-slate-50 transition-all">
+                <i data-lucide="map-pin" class="w-5 h-5"></i>
+                <span>Fleet Explorer</span>
+            </a>
+            <a href="#insights" onclick="switchTab('insights')" class="nav-link flex items-center space-x-3 px-3 py-2.5 rounded-xl text-slate-500 hover:bg-slate-50 transition-all">
+                <i data-lucide="zap" class="w-5 h-5"></i>
+                <span>Insight Engine</span>
+            </a>
+        </nav>
+
+        <div class="p-4 mt-auto border-t border-slate-100">
+            <div class="bg-slate-50 rounded-xl p-3 flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-bold text-white">OP</div>
+                <div class="overflow-hidden">
+                    <p class="text-xs font-bold truncate">Ops Director</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Org ID: ENT_4491</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main View -->
+    <main class="flex-1 flex flex-col relative overflow-hidden">
+        
+        <!-- Main Header -->
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 flex-shrink-0">
+            <div class="flex items-center space-x-4">
+                <h2 class="text-lg font-bold" id="page-title">Altos Intelligence</h2>
+                <div class="h-4 w-[1px] bg-slate-300"></div>
+                <div class="flex items-center space-x-2 text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-100 uppercase font-bold tracking-widest">
+                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                    <span>V4 API: Live</span>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-xs text-slate-400">Context: 142 Saved Locations</span>
+                <button class="p-2 text-slate-400 hover:text-slate-800"><i data-lucide="search" class="w-5 h-5"></i></button>
+                <button class="p-2 text-slate-400 hover:text-slate-800"><i data-lucide="bell" class="w-5 h-5"></i></button>
+            </div>
+        </header>
+
+        <!-- Content Scroller -->
+        <div class="flex-1 overflow-y-auto p-8 space-y-8 pb-16 scroll-smooth" id="scroll-root">
+            
+            <!-- ALTOS CHAT (Requirement 3C) -->
+            <section id="dashboard" class="max-w-6xl mx-auto space-y-4">
+                <div class="flex items-center space-x-2">
+                    <div class="bg-blue-600 p-1.5 rounded-lg shadow-lg shadow-blue-200">
+                        <i data-lucide="sparkles" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-900 tracking-tight">Altos Synthesis</h3>
+                </div>
+
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[480px]">
+                    <div id="chat-window" class="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50/20 scrollbar-hide">
+                        <!-- Initial Message -->
+                        <div class="flex space-x-4">
+                            <div class="w-10 h-10 bg-[#0F172A] rounded-2xl flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="bot" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="flex-1 space-y-4">
+                                <div class="bg-white border border-slate-200 p-6 rounded-2xl rounded-tl-none shadow-sm max-w-3xl">
+                                    <div id="initial-text" class="text-slate-800 leading-relaxed font-medium mb-4 altos-typing"></div>
+                                    <div id="initial-cards" class="hidden space-y-3">
+                                        <!-- Locations cards inserted here -->
+                                    </div>
+                                </div>
+                                <p class="text-[10px] text-slate-400">RAG Context: Forecast (V4) + Historical (V2) • Faithfulness: 99.8%</p>
+                            </div>
+                        </div>
+                        <div id="chat-append"></div>
+                    </div>
+
+                    <!-- Input / Prompt Bar -->
+                    <div class="p-6 border-t border-slate-100 bg-white">
+                        <div class="flex space-x-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                            <button onclick="sendQuery('Show only high likelihood risks')" class="whitespace-nowrap px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-full border border-slate-200">P(Risk) > 80%</button>
+                            <button onclick="sendQuery('Compare Miami gusts to historical 10yr anomaly')" class="whitespace-nowrap px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-full border border-slate-200">Historical Benchmarking</button>
+                            <button onclick="sendQuery('Adjust weights: Prioritize wind over precipitation')" class="whitespace-nowrap px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-full border border-slate-200">Weight: Wind Priority</button>
+                        </div>
+                        <div class="relative flex">
+                            <input type="text" id="chat-input" placeholder="Ask Altos about prioritization across your fleet..." class="flex-1 bg-slate-100 border-none rounded-2xl py-4 px-6 text-sm font-medium focus:ring-2 focus:ring-blue-600 transition-all">
+                            <button onclick="handleSend()" class="absolute right-3 top-2.5 p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all">
+                                <i data-lucide="send-horizontal" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RISK MATRIX & TRENDS (Requirement 3B) -->
+            <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                <!-- Risk Matrix Card -->
+                <section id="matrix" class="lg:col-span-5 glass-card p-6 flex flex-col">
+                    <div class="flex justify-between items-center mb-6">
+                        <h4 class="font-bold flex items-center">
+                            <i data-lucide="grid" class="w-4 h-4 mr-2 text-blue-600"></i>
+                            Risk Priority Matrix
+                        </h4>
+                        <span class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Real-time Rank</span>
+                    </div>
+
+                    <div class="relative w-full aspect-square bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden mb-4">
+                        <!-- Matrix Background -->
+                        <div class="absolute inset-0 grid grid-cols-2 grid-rows-2 opacity-20">
+                            <div class="border-r border-b border-slate-300 bg-amber-100"></div>
+                            <div class="border-b border-slate-300 bg-red-200"></div>
+                            <div class="border-r border-slate-300 bg-emerald-50"></div>
+                            <div class="bg-amber-100"></div>
+                        </div>
+
+                        <!-- Labels -->
+                        <div class="absolute left-2 top-2 text-[9px] font-bold text-slate-400 rotate-90 origin-top-left ml-4 uppercase">Likelihood &rarr;</div>
+                        <div class="absolute bottom-2 left-0 w-full text-center text-[9px] font-bold text-slate-400 uppercase tracking-widest">Severity (Threshold Delta) &rarr;</div>
+
+                        <!-- Data Points -->
+                        <div onclick="drillDown('mia')" class="absolute top-[15%] right-[15%] cursor-pointer group z-10">
+                            <div class="w-10 h-10 bg-red-600 rounded-full border-4 border-white shadow-xl flex items-center justify-center text-white font-bold text-[10px] bubble-pulse">MIA</div>
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-slate-900 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap">Miami: High Risk (92%)</div>
+                        </div>
+                        <div onclick="drillDown('hou')" class="absolute top-[35%] right-[40%] cursor-pointer group z-10">
+                            <div class="w-7 h-7 bg-orange-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white font-bold text-[8px]">HOU</div>
+                        </div>
+                        <div onclick="drillDown('dal')" class="absolute bottom-[25%] left-[30%] cursor-pointer group z-10">
+                            <div class="w-5 h-5 bg-emerald-500 rounded-full border-2 border-white shadow flex items-center justify-center text-white font-bold text-[7px]">DAL</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-auto space-y-3">
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center space-x-3">
+                            <i data-lucide="target" class="w-4 h-4 text-slate-400"></i>
+                            <p class="text-[11px] text-slate-600 leading-tight">
+                                Altos has prioritized <strong>1 Critical Outlier</strong> (MIA) due to extreme deviation from 10yr historical normals.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Fleet Analytics -->
+                <section class="lg:col-span-7 glass-card p-6 flex flex-col">
+                    <div class="flex justify-between items-center mb-6">
+                        <h4 class="font-bold flex items-center">
+                            <i data-lucide="bar-chart-2" class="w-4 h-4 mr-2 text-blue-600"></i>
+                            Severity Distribution
+                        </h4>
+                        <div class="flex space-x-2">
+                            <button class="px-2 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded">BY IMPACT</button>
+                            <button class="px-2 py-1 text-slate-400 text-[10px] font-bold rounded">BY REGION</button>
+                        </div>
+                    </div>
+                    <div class="chart-container flex-1">
+                        <canvas id="distChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- DRILL DOWN (Requirement 3A & KPI: Actionability) -->
+            <section id="fleet" class="max-w-6xl mx-auto space-y-6">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xl font-bold">Priority Location Drill-Down</h3>
+                    <div class="flex space-x-2">
+                        <button class="flex items-center space-x-1 text-xs font-bold text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-all">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                            <span>Export Risk Report</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Miami Detail -->
+                    <div id="mia-card" class="glass-card overflow-hidden hover:border-red-200 transition-all cursor-pointer group" onclick="loadInsight('mia')">
+                        <div class="h-1.5 w-full bg-red-600"></div>
+                        <div class="p-6">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h5 class="font-bold text-slate-900">Miami Port Terminal</h5>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Site ID: MIA_42_OPS</p>
+                                </div>
+                                <span class="risk-pill critical">Critical</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 mb-6">
+                                <div class="bg-slate-50 p-3 rounded-2xl">
+                                    <p class="text-[9px] text-slate-400 font-bold uppercase mb-1">Forecast Gusts</p>
+                                    <p class="text-xl font-bold text-red-600">58 <span class="text-[11px] font-normal text-slate-400">mph</span></p>
+                                </div>
+                                <div class="bg-slate-50 p-3 rounded-2xl">
+                                    <p class="text-[9px] text-slate-400 font-bold uppercase mb-1">Likelihood</p>
+                                    <p class="text-xl font-bold">92<span class="text-[11px] font-normal text-slate-400">%</span></p>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="flex items-center text-xs text-slate-600">
+                                    <i data-lucide="history" class="w-3.5 h-3.5 mr-2 text-slate-400"></i>
+                                    <span>Anomaly: +4.2σ vs 10y Average</span>
+                                </div>
+                                <div class="flex items-center text-xs text-slate-600">
+                                    <i data-lucide="shield" class="w-3.5 h-3.5 mr-2 text-blue-600"></i>
+                                    <span>Insight: Gantry Work Stop Active</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Houston Detail -->
+                    <div id="hou-card" class="glass-card overflow-hidden hover:border-orange-200 transition-all cursor-pointer group" onclick="loadInsight('hou')">
+                        <div class="h-1.5 w-full bg-orange-500"></div>
+                        <div class="p-6">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h5 class="font-bold text-slate-900">Houston Logistics Hub</h5>
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Site ID: HOU_99_LOG</p>
+                                </div>
+                                <span class="risk-pill warning">Warning</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 mb-6">
+                                <div class="bg-slate-50 p-3 rounded-2xl">
+                                    <p class="text-[9px] text-slate-400 font-bold uppercase mb-1">Precip Prob</p>
+                                    <p class="text-xl font-bold text-orange-600">74 <span class="text-[11px] font-normal text-slate-400">%</span></p>
+                                </div>
+                                <div class="bg-slate-50 p-3 rounded-2xl">
+                                    <p class="text-[9px] text-slate-400 font-bold uppercase mb-1">Likelihood</p>
+                                    <p class="text-xl font-bold">85<span class="text-[11px] font-normal text-slate-400">%</span></p>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="flex items-center text-xs text-slate-600">
+                                    <i data-lucide="history" class="w-3.5 h-3.5 mr-2 text-slate-400"></i>
+                                    <span>Anomaly: Seasonal Norm Deviation</span>
+                                </div>
+                                <div class="flex items-center text-xs text-slate-600">
+                                    <i data-lucide="shield" class="w-3.5 h-3.5 mr-2 text-blue-600"></i>
+                                    <span>Insight: Flood Preparedness Tier 1</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dallas Detail -->
+                    <div id="dal-card" class="glass-card overflow-hidden hover:border-emerald-200 transition-all cursor-pointer group opacity-60 grayscale hover:grayscale-0" onclick="loadInsight('dal')">
+                        <div class="h-1.5 w-full bg-emerald-500"></div>
+                        <div class="p-6 text-center flex flex-col items-center justify-center">
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Dallas Retail #402</p>
+                            <p class="text-lg font-bold text-slate-800">No Risk Detected</p>
+                            <span class="risk-pill nominal mt-2">Nominal</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- HISTORICAL CONTEXTUAL EXPLORER (Requirement 3A & 7) -->
+            <section id="insights" class="max-w-6xl mx-auto glass-card p-8">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <div>
+                        <h3 class="text-xl font-bold" id="explorer-title">Historical Anomaly Explorer: Miami Port</h3>
+                        <p class="text-sm text-slate-500">Comparing V4 Predicted Severity vs. V2 Historical Benchmarks</p>
+                    </div>
+                    <div class="flex items-center space-x-6">
+                        <div class="flex items-center space-x-2 text-[10px] font-bold text-slate-500 uppercase">
+                            <span class="w-3 h-3 bg-red-600 rounded-full"></span>
+                            <span>V4 Forecast</span>
+                        </div>
+                        <div class="flex items-center space-x-2 text-[10px] font-bold text-slate-500 uppercase">
+                            <span class="w-3 h-0.5 border-t-2 border-dashed border-slate-400"></span>
+                            <span>10Y Normal</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="explorerChart"></canvas>
+                </div>
+
+                <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Likelihood Analysis</p>
+                        <p class="text-xs text-slate-800 leading-relaxed font-medium">92% probability of wind gusts exceeding 45mph between 14:00 - 18:00 Local. Confidence Interval: High.</p>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase mb-2">Historical Context</p>
+                        <p class="text-xs text-slate-800 leading-relaxed font-medium">This event is in the top 0.2% of all wind events recorded for this latitude/longitude in the month of November.</p>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <p class="text-[10px] font-bold text-blue-600 uppercase mb-2">Playbook Trigger</p>
+                        <p class="text-xs text-slate-800 leading-relaxed font-medium">Automated Action: Secure all crane gantry systems. Evacuate high-exposure personnel by 13:00.</p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- Global Security Footer -->
+        <footer class="h-10 border-t border-slate-200 bg-white flex items-center justify-between px-8 z-20">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center">
+                <i data-lucide="shield-check" class="w-3 h-3 mr-1"></i> Data Boundaries: Org_ID ENT_4491 • Zero-Retention Tier
+            </p>
+            <p class="text-[10px] text-slate-400 italic">
+                Tomorrow.io Weather Intelligence Platform. Contextual forecasts are a decision aid, not a guarantee.
+            </p>
+        </footer>
+
+    </main>
+
+    <script>
+        // Initialization
+        lucide.createIcons();
+        let explorerChartInstance = null;
+        let distributionChartInstance = null;
+
+        const DATA = {
+            mia: {
+                title: 'Miami Port Terminal',
+                forecast: [22, 28, 45, 58, 52, 40, 32, 25],
+                avg: [15, 16, 17, 18, 17, 16, 15, 14],
+                labels: ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
+                severity: 'Critical'
+            },
+            hou: {
+                title: 'Houston Logistics Hub',
+                forecast: [8, 12, 18, 24, 32, 28, 20, 15],
+                avg: [12, 13, 14, 15, 14, 13, 12, 11],
+                labels: ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
+                severity: 'Warning'
+            },
+            dal: {
+                title: 'Dallas Retail #402',
+                forecast: [5, 6, 8, 10, 12, 10, 8, 5],
+                avg: [8, 9, 10, 11, 10, 9, 8, 7],
+                labels: ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
+                severity: 'Nominal'
+            }
+        };
+
+        // UI Logic
+        function switchTab(id) {
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            
+            const titleMap = {
+                dashboard: 'Altos Intelligence',
+                matrix: 'Risk Priority Matrix',
+                fleet: 'Fleet Explorer',
+                insights: 'Historical Benchmarks'
+            };
+            document.getElementById('page-title').innerText = titleMap[id];
+            
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function loadInsight(id) {
+            const site = DATA[id];
+            document.getElementById('explorer-title').innerText = `Historical Anomaly Explorer: ${site.title}`;
+            updateExplorerChart(id);
+            document.getElementById('insights').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function drillDown(id) {
+            loadInsight(id);
+        }
+
+        // Altos Simulation
+        function simulateAltos() {
+            const initialText = "Good morning. I've synthesized data for your 142 locations. Currently, there is 1 Critical Risk in Miami and 1 Warning Alert in Houston that require your attention based on your business thresholds.";
+            const target = document.getElementById('initial-text');
+            let i = 0;
+            const typing = setInterval(() => {
+                target.innerText += initialText.charAt(i);
+                i++;
+                if (i >= initialText.length) {
+                    clearInterval(typing);
+                    target.classList.remove('altos-typing');
+                    showInitialCards();
+                }
+            }, 15);
+        }
+
+        function showInitialCards() {
+            const cards = document.getElementById('initial-cards');
+            cards.classList.remove('hidden');
+            cards.innerHTML = `
+                <div class="flex items-start space-x-3 p-3 bg-red-50 border border-red-100 rounded-xl animate-pulse">
+                    <div class="mt-1 bg-red-500 w-2 h-2 rounded-full"></div>
+                    <div>
+                        <p class="text-xs font-bold text-red-900">Miami Port (Critical Risk)</p>
+                        <p class="text-[10px] text-red-800 mt-1">
+                            <span class="font-bold">Severity:</span> Extreme wind (58mph) • <span class="font-bold">Likelihood:</span> 92% • <span class="font-bold">Context:</span> 1-in-10yr anomaly.
+                        </p>
+                        <button onclick="loadInsight('mia')" class="mt-2 text-[10px] font-bold text-red-600 underline">View Decision Detail &rarr;</button>
+                    </div>
+                </div>
+                <div class="flex items-start space-x-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                    <div class="mt-1 bg-amber-500 w-2 h-2 rounded-full"></div>
+                    <div>
+                        <p class="text-xs font-bold text-amber-900">Houston Logistics Hub (Warning)</p>
+                        <p class="text-[10px] text-amber-800 mt-1">
+                            Heavy precipitation (>1.2in/hr) expected starting 16:00. Likelihood: 85%.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function sendQuery(q) {
+            const input = document.getElementById('chat-input');
+            input.value = q;
+            handleSend();
+        }
+
+        function handleSend() {
+            const input = document.getElementById('chat-input');
+            const query = input.value;
+            if (!query) return;
+
+            const chatAppend = document.getElementById('chat-append');
+            chatAppend.innerHTML += `
+                <div class="flex justify-end mb-6">
+                    <div class="bg-blue-600 text-white p-4 rounded-2xl rounded-tr-none shadow-sm text-sm max-w-[80%] font-medium">
+                        ${query}
+                    </div>
+                </div>
+            `;
+            input.value = '';
+            
+            // Sim AI Response
+            setTimeout(() => {
+                const id = 'ai-' + Date.now();
+                chatAppend.innerHTML += `
+                    <div class="flex space-x-4 mb-6">
+                        <div class="w-10 h-10 bg-[#0F172A] rounded-2xl flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="bot" class="w-6 h-6 text-white"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="bg-white border border-slate-200 p-6 rounded-2xl rounded-tl-none shadow-sm max-w-2xl">
+                                <p id="${id}" class="text-slate-800 text-sm leading-relaxed font-medium altos-typing"></p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                lucide.createIcons();
+                const response = getMockResponse(query);
+                let char = 0;
+                const typing = setInterval(() => {
+                    document.getElementById(id).innerText += response.charAt(char);
+                    char++;
+                    if (char >= response.length) {
+                        clearInterval(typing);
+                        document.getElementById(id).classList.remove('altos-typing');
+                        const win = document.getElementById('chat-window');
+                        win.scrollTop = win.scrollHeight;
+                    }
+                }, 10);
+            }, 800);
+        }
+
+        function getMockResponse(q) {
+            const lq = q.toLowerCase();
+            if (lq.includes('likelihood')) return "I've re-prioritized your fleet based on likelihood > 80%. Miami remains at the top (92%), while Houston (85%) has been bumped to priority 2. All other 140 locations remain under a 40% probability of threshold breach.";
+            if (lq.includes('miami')) return "Comparing current V4 forecasts for Miami Port to the 10-year V2 historical archive... This wind event is calculated as a +4.2σ (sigma) anomaly. Historically, events of this magnitude result in operational downtime of 6-8 hours.";
+            if (lq.includes('adjust weights')) return "User preferences updated. I am now weighting Wind Severity with a 2x multiplier over Precipitation. This has effectively cleared Dallas Retail from the warning list and emphasized Texas coastal hubs.";
+            return "Based on current API data, the priorities remain unchanged. Miami Port is the primary operational concern for the next 12 hours. Would you like me to trigger the crane-safety playbook for that location?";
+        }
+
+        // Charts
+        function initCharts() {
+            // Distribution Chart
+            const distCtx = document.getElementById('distChart').getContext('2d');
+            distributionChartInstance = new Chart(distCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Critical', 'Warning', 'Moderate', 'Nominal'],
+                    datasets: [{
+                        label: 'Fleet Distribution',
+                        data: [1, 2, 8, 131],
+                        backgroundColor: ['#ef4444', '#f97316', '#eab308', '#10b981'],
+                        borderRadius: 8,
+                        barThickness: 50
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            updateExplorerChart('mia');
+        }
+
+        function updateExplorerChart(id) {
+            const ctx = document.getElementById('explorerChart').getContext('2d');
+            const site = DATA[id];
+            
+            if (explorerChartInstance) explorerChartInstance.destroy();
+
+            explorerChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: site.labels,
+                    datasets: [
+                        {
+                            label: 'Forecast Speed',
+                            data: site.forecast,
+                            borderColor: site.severity === 'Critical' ? '#ef4444' : '#f97316',
+                            borderWidth: 4,
+                            pointBackgroundColor: '#fff',
+                            pointRadius: 6,
+                            tension: 0.4,
+                            fill: true,
+                            backgroundColor: site.severity === 'Critical' ? 'rgba(239, 68, 68, 0.05)' : 'rgba(249, 115, 22, 0.05)'
+                        },
+                        {
+                            label: 'Historical Avg',
+                            data: site.avg,
+                            borderColor: '#94a3b8',
+                            borderDash: [8, 4],
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            tension: 0.4,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: '#f1f5f9' },
+                            title: { display: true, text: 'SPEED (MPH)', font: { size: 10, weight: 'bold' } }
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        window.onload = () => {
+            initCharts();
+            simulateAltos();
+        };
+
+    </script>
+</body>
+</html>
