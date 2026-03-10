@@ -272,14 +272,14 @@
                     <thead class="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         <tr>
                             <th class="px-4 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortFleet('title')">
-                                <div class="flex items-center">Site <i data-lucide="chevron-down" class="w-3 h-3 ml-1"></i></div>
+                                <div class="flex items-center">Site <i data-lucide="arrow-up-down" class="w-3 h-3 ml-1"></i></div>
                             </th>
                             <th class="px-4 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortFleet('riskScore')">
-                                <div class="flex items-center">Severity <i data-lucide="chevron-down" class="w-3 h-3 ml-1"></i></div>
+                                <div class="flex items-center">Severity <i data-lucide="arrow-up-down" class="w-3 h-3 ml-1"></i></div>
                             </th>
                             <th class="px-4 py-4">Trigger Type</th>
                             <th class="px-4 py-4 text-right cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortFleet('metricValue')">
-                                <div class="flex items-center justify-end">Value <i data-lucide="chevron-down" class="w-3 h-3 ml-1"></i></div>
+                                <div class="flex items-center justify-end">Value <i data-lucide="arrow-up-down" class="w-3 h-3 ml-1"></i></div>
                             </th>
                         </tr>
                     </thead>
@@ -314,8 +314,8 @@
     <script>
         // Temporal State & Data Engine
         let forecastWindowHours = 24;
-        let fleetSortKey = 'riskScore';
-        let fleetSortDir = -1;
+        let fleetSortKey = 'riskScore'; // Default sort by Severity
+        let fleetSortDir = -1; // Default descending (High risk first)
         let fleetFilter = '';
         let currentView = 'chat';
 
@@ -347,11 +347,11 @@
                 title: `${city} Site ${100+i}`, 
                 badge: '<span class="risk-pill nominal">Nominal</span>', 
                 riskScore: 1 + Math.random(),
-                metricValue: (5 + Math.random() * 5).toFixed(1), 
+                metricValue: parseFloat((5 + Math.random() * 5).toFixed(1)), 
                 metricLabel: 'Wind',
                 trigger: 'Nominal',
                 status: 'nominal',
-                unlockAt: 1000 // effectively hidden from risk filters
+                unlockAt: 1000 
             };
         }
 
@@ -389,7 +389,6 @@
             
             const activeRisks = getActiveRisks();
             
-            // Re-brief Altos Chat
             const chatMount = document.getElementById('chat-mount');
             chatMount.innerHTML += `
                 <div class="flex space-x-4 lg:space-x-6 max-w-4xl mx-auto mb-10 mt-10 animate-in slide-in-from-bottom-2 duration-500">
@@ -439,12 +438,14 @@
                         </div>
                     </button>`;
             });
-            document.getElementById('summary-text-context').innerText = `Analyzing the active ${forecastWindowHours}h horizon. I've flagged ${activeKeys.length} sites for threshold breaches.`;
+            const summary = document.getElementById('summary-text-context');
+            if(summary) summary.innerText = `Analyzing the active ${forecastWindowHours}h horizon. I've flagged ${activeKeys.length} sites for threshold breaches.`;
         }
 
         function updateShortcuts() {
             const container = document.getElementById('shortcut-container');
             const activeKeys = getActiveRisks();
+            if(!container) return;
             container.innerHTML = `
                 <button onclick="sendShortcut('Audit mitigation for ${MASTER_SITES[activeKeys[0]].title}')" class="flex items-center p-3 text-left bg-blue-50 hover:bg-blue-100 rounded-xl transition-all border border-blue-100 group">
                     <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center mr-3 shadow-sm text-blue-600"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
@@ -455,8 +456,8 @@
                     <div><p class="text-xs font-bold text-slate-900">Historical Comparison</p><p class="text-[10px] text-slate-500 font-medium">How unusual is this ${forecastWindowHours}h weather pattern?</p></div>
                 </button>
             `;
-            document.getElementById('initial-shortcuts').classList.remove('hidden');
-            document.getElementById('additional-briefing').classList.remove('hidden');
+            document.getElementById('initial-shortcuts')?.classList.remove('hidden');
+            document.getElementById('additional-briefing')?.classList.remove('hidden');
         }
 
         function switchTab(tab) {
@@ -512,14 +513,68 @@
             if (window.lucide) lucide.createIcons();
         }
 
+        function filterFleetTable(val) {
+            fleetFilter = val.toLowerCase();
+            populateFleetTable();
+        }
+
+        function sortFleet(key) {
+            if (fleetSortKey === key) {
+                fleetSortDir *= -1;
+            } else {
+                fleetSortKey = key;
+                fleetSortDir = (key === 'title') ? 1 : -1; // Default A-Z for titles, High-Low for numbers
+            }
+            populateFleetTable();
+        }
+
         function populateFleetTable() {
             const tbody = document.getElementById('fleet-table-body');
             if (!tbody) return;
             tbody.innerHTML = '';
 
-            const keys = Object.keys(FLEET_DATA)
-                .filter(k => FLEET_DATA[k].title.toLowerCase().includes(fleetFilter) || FLEET_DATA[k].trigger.toLowerCase().includes(fleetFilter))
-                .sort((a,b) => (FLEET_DATA[b][fleetSortKey] - FLEET_DATA[a][fleetSortKey]) * fleetSortDir);
+            const keys = Object.keys(FLEET_DATA).filter(k => {
+                const site = FLEET_DATA[k];
+                return site.title.toLowerCase().includes(fleetFilter) || 
+                       site.trigger.toLowerCase().includes(fleetFilter);
+            });
+
+            // Priority helper: Critical (9-7) -> 3, Warning (6-4) -> 2, Nominal (3-0) -> 1
+            const getPriority = (site) => {
+                if (site.unlockAt > forecastWindowHours) return 1; // It's nominal in the current window
+                if (site.riskScore >= 7) return 3;
+                if (site.riskScore >= 4) return 2;
+                return 1;
+            };
+
+            keys.sort((a, b) => {
+                const siteA = FLEET_DATA[a];
+                const siteB = FLEET_DATA[b];
+
+                // Standard Column Sort Logic
+                if (fleetSortKey === 'title') {
+                    return siteA.title.localeCompare(siteB.title) * fleetSortDir;
+                }
+                
+                if (fleetSortKey === 'riskScore') {
+                    // Smart Default Logic (Tiered Priority -> Alphabetical)
+                    const pA = getPriority(siteA);
+                    const pB = getPriority(siteB);
+                    
+                    if (pA !== pB) return (pB - pA) * fleetSortDir;
+                    // Secondary sort: Alphabetical
+                    return siteA.title.localeCompare(siteB.title);
+                }
+
+                if (fleetSortKey === 'metricValue') {
+                    const valA = parseFloat(siteA.metricValue);
+                    const valB = parseFloat(siteB.metricValue);
+                    if (valA !== valB) return (valB - valA) * fleetSortDir;
+                    return siteA.title.localeCompare(siteB.title);
+                }
+
+                return 0;
+            });
 
             keys.forEach(k => {
                 const l = FLEET_DATA[k];
@@ -535,6 +590,7 @@
                 `;
                 tbody.appendChild(tr);
             });
+            lucide.createIcons();
         }
 
         function renderFleetDistribution() {
@@ -634,7 +690,6 @@
             if (!mount || typeof Chart === 'undefined') return;
             mount.innerHTML = '<canvas id="locChart"></canvas>';
             
-            // Mock dynamic data scaling
             const pointsCount = 10;
             const pointsForecast = [];
             const pointsAvg = [];
