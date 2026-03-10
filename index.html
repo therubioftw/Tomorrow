@@ -44,7 +44,7 @@
         .warning { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
         .nominal { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 
-        /* Side Panel Transitions - Sync with JS (350ms) */
+        /* Side Panel Transitions */
         .side-panel {
             transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
         }
@@ -56,7 +56,6 @@
             position: absolute;
         }
 
-        /* Responsive UI logic */
         @media (max-width: 1023px) {
             .workspace-active .main-chat-window {
                 display: none;
@@ -80,11 +79,22 @@
             70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
         }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1em;
+        }
     </style>
 </head>
 <body class="text-[#0F172A] flex h-screen overflow-hidden">
 
-    <!-- Sidebar Navigation -->
+    <!-- Sidebar -->
     <aside id="sidebar" class="sidebar-container w-64 bg-white border-r border-slate-200 flex flex-col flex-shrink-0 z-50 transition-all duration-300">
         <div class="p-6 mb-4 flex items-center justify-center lg:justify-start">
             <div class="flex items-center space-x-2">
@@ -94,12 +104,27 @@
         </div>
         
         <nav class="flex-1 px-3 space-y-2 overflow-y-auto scrollbar-hide">
+            <!-- Forecast Window Context -->
+            <div class="mb-6 px-4">
+                <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Forecast Horizon</label>
+                <select id="global-horizon" onchange="updateForecastWindow(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                    <option value="24">24 Hours (Next Day)</option>
+                    <option value="48">48 Hours (Short Term)</option>
+                    <option value="72">72 Hours (3-Day)</option>
+                    <option value="168">7 Days (Week Lookahead)</option>
+                </select>
+                <div class="mt-2 flex items-center space-x-1 text-[9px] text-blue-600 font-bold uppercase">
+                    <i data-lucide="clock" class="w-2.5 h-2.5"></i>
+                    <span>Live Synthesis Active</span>
+                </div>
+            </div>
+
             <button onclick="switchTab('chat')" class="nav-btn active w-full sidebar-nav-item flex items-center lg:space-x-3 p-3 lg:px-4 rounded-xl transition-all justify-start bg-blue-50 text-blue-700 font-bold border-r-4 border-blue-600" id="btn-chat">
                 <i data-lucide="sparkles" class="w-5 h-5 flex-shrink-0"></i>
                 <span class="nav-item-text">Altos Intelligence</span>
             </button>
             <div class="h-px bg-slate-100 my-4 mx-2"></div>
-            <p class="sidebar-label text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-2">Platform Views</p>
+            <p class="sidebar-label text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-2">Operational Context</p>
             <button onclick="toggleContext('matrix')" class="nav-btn sidebar-nav-item w-full flex items-center lg:space-x-3 p-3 lg:px-4 rounded-xl text-slate-500 hover:bg-slate-50 transition-all justify-start" id="btn-matrix">
                 <i data-lucide="grid-3x3" class="w-5 h-5 flex-shrink-0"></i>
                 <span class="nav-item-text">Risk Matrix</span>
@@ -127,19 +152,17 @@
 
     <!-- Main Workspace -->
     <main id="workspace" class="flex-1 flex flex-col relative bg-white overflow-hidden transition-all duration-300">
-        <!-- Header -->
         <header class="h-16 lg:h-20 border-b border-slate-100 flex items-center justify-between px-6 lg:px-8 flex-shrink-0">
             <div class="flex items-center space-x-4">
                 <h2 class="text-lg lg:text-xl font-bold tracking-tight">Altos Workspace</h2>
-                <div class="hidden sm:flex items-center space-x-2 text-[10px] bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full border border-emerald-100 uppercase font-black tracking-widest">
-                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                    <span>Ready</span>
+                <div class="flex items-center space-x-2 text-[10px] bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-100 uppercase font-black tracking-widest">
+                    <span id="header-window-label">24-Hour Horizon</span>
                 </div>
             </div>
         </header>
 
         <!-- Chat Area -->
-        <div id="main-chat" class="main-chat-window flex-1 flex flex-col h-full overflow-hidden">
+        <div id="main-chat" class="main-chat-window flex-1 flex flex-col min-h-0">
             <div id="chat-window" class="flex-1 overflow-y-auto p-4 lg:p-12 space-y-10 scrollbar-hide scroll-smooth">
                 <!-- Initial Briefing -->
                 <div class="flex space-x-4 lg:space-x-6 max-w-4xl mx-auto">
@@ -150,18 +173,49 @@
                         <div class="p-1 space-y-6">
                             <div id="initial-text" class="text-slate-800 text-base lg:text-xl font-semibold leading-relaxed altos-typing"></div>
                             <div id="initial-actions" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-500"></div>
+                            
+                            <!-- In-Chat Shortcuts -->
+                            <div id="initial-shortcuts" class="hidden space-y-3 pt-2">
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Immediate Intelligence Actions:</p>
+                                <div class="grid grid-cols-1 gap-2">
+                                    <button onclick="sendShortcut('Perform a deep mitigation audit for Miami Port Wind risk.')" class="flex items-center p-3 text-left bg-blue-50 hover:bg-blue-100 rounded-xl transition-all border border-blue-100 group">
+                                        <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center mr-3 shadow-sm text-blue-600">
+                                            <i data-lucide="shield-check" class="w-4 h-4"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-bold text-blue-900">Mitigation Audit: Miami Port</p>
+                                            <p class="text-[10px] text-blue-600 font-medium">Generate specific operational steps for 58mph gusts.</p>
+                                        </div>
+                                    </button>
+                                    <button onclick="sendShortcut('Identify every location in my fleet trending towards threshold breaches.')" class="flex items-center p-3 text-left bg-slate-50 hover:bg-slate-100 rounded-xl transition-all border border-slate-100 group">
+                                        <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center mr-3 shadow-sm text-slate-600">
+                                            <i data-lucide="zoom-in" class="w-4 h-4"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-bold text-slate-900">Fleet Threshold Scan</p>
+                                            <p class="text-[10px] text-slate-500 font-medium">Rank all 142 sites by probability of breach within the horizon.</p>
+                                        </div>
+                                    </button>
+                                    <button onclick="sendShortcut('Compare this forecast window against historical climatology.')" class="flex items-center p-3 text-left bg-slate-50 hover:bg-slate-100 rounded-xl transition-all border border-slate-100 group">
+                                        <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center mr-3 shadow-sm text-slate-600">
+                                            <i data-lucide="history" class="w-4 h-4"></i>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-bold text-slate-900">Historical Anomaly Check</p>
+                                            <p class="text-[10px] text-slate-500 font-medium">How unusual are these surge levels for March?</p>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
                             <div id="additional-briefing" class="hidden space-y-4">
                                 <div class="p-4 lg:p-6 bg-slate-50 rounded-2xl border border-slate-100 flex items-start space-x-4">
                                     <i data-lucide="info" class="w-5 h-5 text-blue-600 flex-shrink-0 mt-1"></i>
                                     <div>
                                         <p class="text-sm font-bold text-slate-900 mb-1">Operational Summary</p>
-                                        <p class="text-sm text-slate-600 leading-relaxed">
-                                            I've synthesized 142 locations. 5 are trending high-risk. 137 are currently safe.
+                                        <p class="text-sm text-slate-600 leading-relaxed" id="summary-text-context">
+                                            Analyzing the next 24 hours. 5 sites require immediate mitigation guidance.
                                         </p>
-                                        <div class="mt-4 flex flex-wrap gap-2">
-                                            <button onclick="toggleContext('matrix')" class="text-[10px] lg:text-xs font-bold bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 shadow-sm transition-all">Open Matrix</button>
-                                            <button onclick="toggleContext('fleet')" class="text-[10px] lg:text-xs font-bold bg-white border border-slate-200 px-4 py-2 rounded-xl hover:bg-slate-50 shadow-sm transition-all">Full Fleet</button>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -172,13 +226,15 @@
             </div>
 
             <!-- Input Area -->
-            <div class="p-4 lg:p-8 border-t border-slate-100 bg-white z-20">
-                <div class="max-w-4xl mx-auto relative flex items-center">
-                    <input type="text" id="chat-input" placeholder="Ask Altos for deep analysis..." class="flex-1 bg-slate-50 border border-slate-100 rounded-2xl py-4 lg:py-6 px-6 lg:px-10 text-sm lg:text-base font-medium focus:ring-4 focus:ring-blue-50 outline-none transition-all">
-                    <div class="absolute right-3 lg:right-4">
-                        <button onclick="handleSendMessage()" class="p-2 lg:p-3.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
-                            <i data-lucide="arrow-up" class="w-5 h-5 lg:w-6 lg:h-6"></i>
-                        </button>
+            <div class="p-4 lg:p-8 border-t border-slate-100 bg-white z-20 flex-shrink-0">
+                <div class="max-w-4xl mx-auto">
+                    <div class="relative flex items-center">
+                        <input type="text" id="chat-input" placeholder="Ask Altos for deep analysis..." class="flex-1 bg-slate-50 border border-slate-100 rounded-2xl py-4 lg:py-6 px-6 lg:px-10 text-sm lg:text-base font-medium focus:ring-4 focus:ring-blue-50 outline-none transition-all">
+                        <div class="absolute right-3 lg:right-4">
+                            <button onclick="handleSendMessage()" class="p-2 lg:p-3.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
+                                <i data-lucide="arrow-up" class="w-5 h-5 lg:w-6 lg:h-6"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -201,6 +257,13 @@
     <!-- Templates -->
     <template id="tpl-matrix">
         <div class="space-y-8 animate-in slide-in-from-right-10 duration-500">
+            <div class="p-4 bg-blue-600 rounded-2xl text-white shadow-xl flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] font-black uppercase opacity-70">Current Temporal Mode</p>
+                    <p class="text-sm font-bold" id="matrix-window-label">--</p>
+                </div>
+                <i data-lucide="clock" class="w-6 h-6 opacity-40"></i>
+            </div>
             <div class="glass-card p-6">
                  <h4 class="font-bold text-sm uppercase tracking-widest mb-4 text-slate-400">Fleet Severity Distribution</h4>
                  <div class="chart-container" id="fleet-dist-mount"></div>
@@ -222,16 +285,27 @@
 
     <template id="tpl-fleet">
         <div class="space-y-6 animate-in fade-in duration-500">
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Fleet Index (142 Total)</p>
+                <div class="flex items-center space-x-2 w-full sm:w-auto">
+                    <input type="text" id="fleet-search" placeholder="Filter sites..." oninput="filterFleetTable(this.value)" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-100">
+                    <div class="text-[10px] bg-slate-100 px-3 py-2 rounded-xl font-bold text-slate-500" id="fleet-window-indicator">24H</div>
+                </div>
             </div>
-            <div class="border border-slate-100 rounded-2xl overflow-hidden overflow-x-auto bg-white">
-                <table class="w-full text-left text-sm min-w-[400px]">
-                    <thead class="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <div class="border border-slate-100 rounded-2xl overflow-hidden overflow-x-auto bg-white shadow-sm">
+                <table class="w-full text-left text-sm min-w-[500px]">
+                    <thead class="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         <tr>
-                            <th class="px-4 py-3">Site</th>
-                            <th class="px-4 py-3">Status</th>
-                            <th class="px-4 py-3 text-right">Metric</th>
+                            <th class="px-4 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortFleet('title')">
+                                <div class="flex items-center">Site <i data-lucide="chevron-down" class="w-3 h-3 ml-1"></i></div>
+                            </th>
+                            <th class="px-4 py-4 cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortFleet('riskScore')">
+                                <div class="flex items-center">Severity <i data-lucide="chevron-down" class="w-3 h-3 ml-1"></i></div>
+                            </th>
+                            <th class="px-4 py-4">Trigger Type</th>
+                            <th class="px-4 py-4 text-right cursor-pointer hover:bg-slate-100 transition-colors" onclick="sortFleet('metricValue')">
+                                <div class="flex items-center justify-end">Value <i data-lucide="chevron-down" class="w-3 h-3 ml-1"></i></div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="fleet-table-body"></tbody>
@@ -242,6 +316,10 @@
 
     <template id="tpl-explorer">
         <div class="space-y-6 animate-in fade-in duration-500">
+            <div class="p-4 bg-slate-900 rounded-2xl text-white shadow-lg">
+                <h4 class="text-xs font-black uppercase tracking-[0.2em] text-blue-400 mb-1">Climatological Explorer</h4>
+                <p class="text-xs opacity-70">Benchmarking current V4 Forecast against 10-year historical norms for the selected <span id="explorer-window-label">24-hour</span> horizon.</p>
+            </div>
             <div class="glass-card p-6">
                 <label class="block text-[10px] font-black uppercase text-slate-400 mb-2">Select Target Site</label>
                 <select id="explorer-select" onchange="openLocationDetail(this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none">
@@ -250,7 +328,7 @@
             </div>
             <div id="explorer-viz" class="hidden space-y-6">
                 <div class="glass-card p-6">
-                    <h4 class="text-xs font-bold uppercase tracking-widest mb-4 text-slate-400">V4 Forecast vs Historical Climatology</h4>
+                    <h4 class="text-xs font-bold uppercase tracking-widest mb-4 text-slate-400">Forecast vs History</h4>
                     <div class="chart-container" id="loc-chart-mount"></div>
                 </div>
                 <div id="explorer-guidance-box" class="p-6 bg-[#0F172A] text-white rounded-3xl"></div>
@@ -259,19 +337,34 @@
     </template>
 
     <script>
+        // Temporal State
+        let forecastWindowHours = 24;
+        let fleetSortKey = 'riskScore';
+        let fleetSortDir = -1; // -1 for desc
+        let fleetFilter = '';
+
         const CORE_RISKS = {
-            mia: { title: 'Miami Port Terminal', badge: '<span class="risk-pill critical">Critical</span>', metric: '58 mph', metricLabel: 'Wind Gust', prob: '92', guidance: 'Immediate shutdown. Secure all crane gantry systems.', forecast: [22, 28, 45, 58, 52, 40, 32, 25], avg: [18, 19, 21, 22, 21, 20, 19, 18], icon: 'wind', x: '15%', y: '15%' },
-            msy: { title: 'New Orleans Terminal', badge: '<span class="risk-pill critical">Critical</span>', metric: '4.2 in', metricLabel: 'Storm Surge', prob: '88', guidance: 'Deploy dock barriers. Verify perimeter water sensors.', forecast: [0.5, 1.2, 2.8, 4.2, 3.8, 2.5, 1.5, 0.8], avg: [0.2, 0.3, 0.4, 0.5, 0.4, 0.3, 0.2, 0.2], icon: 'waves', x: '25%', y: '25%' },
-            hou: { title: 'Houston Logistics', badge: '<span class="risk-pill warning">Warning</span>', metric: '1.2 in/h', metricLabel: 'Precipitation', prob: '85', guidance: 'Deploy lightning site team. Prepare sandbags for Sector B.', forecast: [8, 12, 18, 24, 32, 28, 20, 15], avg: [12, 13, 14, 15, 14, 13, 12, 11], icon: 'cloud-lightning', x: '42%', y: '35%' },
-            ord: { title: 'Chicago Hub', badge: '<span class="risk-pill warning">Warning</span>', metric: '0.5 in', metricLabel: 'Ice Accrual', prob: '72', guidance: 'Initiate de-icing on loading docks. Suspend shift 3 outdoor duty.', forecast: [0.1, 0.2, 0.4, 0.5, 0.4, 0.3, 0.2, 0.1], avg: [0.0, 0.1, 0.1, 0.2, 0.1, 0.1, 0.0, 0.0], icon: 'snowflake', x: '45%', y: '45%' },
-            lax: { title: 'Los Angeles Dist.', badge: '<span class="risk-pill warning">Warning</span>', metric: '12%', metricLabel: 'Humidity (Fire)', prob: '68', guidance: 'Red flag protocol active. Clean all air intake filters.', forecast: [25, 20, 15, 12, 14, 18, 22, 28], avg: [45, 42, 40, 38, 40, 42, 45, 48], icon: 'flame', x: '60%', y: '55%' }
+            mia: { title: 'Miami Port Terminal', badge: '<span class="risk-pill critical">Critical</span>', riskScore: 9, metricValue: 58, metricLabel: 'Wind Gust', prob: '92', guidance: 'Immediate shutdown. Secure all crane gantry systems.', forecast: [22, 28, 45, 58, 52, 40, 32, 25], avg: [18, 19, 21, 22, 21, 20, 19, 18], icon: 'wind', x: '15%', y: '15%', trigger: 'Wind' },
+            msy: { title: 'New Orleans Terminal', badge: '<span class="risk-pill critical">Critical</span>', riskScore: 8, metricValue: 4.2, metricLabel: 'Storm Surge', prob: '88', guidance: 'Deploy dock barriers. Verify perimeter water sensors.', forecast: [0.5, 1.2, 2.8, 4.2, 3.8, 2.5, 1.5, 0.8], avg: [0.2, 0.3, 0.4, 0.5, 0.4, 0.3, 0.2, 0.2], icon: 'waves', x: '25%', y: '25%', trigger: 'Flooding' },
+            hou: { title: 'Houston Logistics', badge: '<span class="risk-pill warning">Warning</span>', riskScore: 6, metricValue: 1.2, metricLabel: 'Precipitation', prob: '85', guidance: 'Deploy lightning site team. Prepare sandbags for Sector B.', forecast: [8, 12, 18, 24, 32, 28, 20, 15], avg: [12, 13, 14, 15, 14, 13, 12, 11], icon: 'cloud-lightning', x: '42%', y: '35%', trigger: 'Lightning' },
+            ord: { title: 'Chicago Hub', badge: '<span class="risk-pill warning">Warning</span>', riskScore: 5, metricValue: 0.5, metricLabel: 'Ice Accrual', prob: '72', guidance: 'Initiate de-icing on loading docks. Suspend shift 3 outdoor duty.', forecast: [0.1, 0.2, 0.4, 0.5, 0.4, 0.3, 0.2, 0.1], avg: [0.0, 0.1, 0.1, 0.2, 0.1, 0.1, 0.0, 0.0], icon: 'snowflake', x: '45%', y: '45%', trigger: 'Ice' },
+            lax: { title: 'Los Angeles Dist.', badge: '<span class="risk-pill warning">Warning</span>', riskScore: 4, metricValue: 12, metricLabel: 'Humidity (Fire)', prob: '68', guidance: 'Red flag protocol active. Clean all air intake filters.', forecast: [25, 20, 15, 12, 14, 18, 22, 28], avg: [45, 42, 40, 38, 40, 42, 45, 48], icon: 'flame', x: '60%', y: '55%', trigger: 'Fire Risk' }
         };
 
         const FLEET_DATA = { ...CORE_RISKS };
         const cities = ['Atlanta', 'Seattle', 'Boston', 'London', 'Berlin', 'Tokyo', 'Sydney', 'Paris', 'Denver', 'Austin'];
+        const metrics = ['Wind', 'Precip', 'Lightning', 'Surge'];
         for (let i = 0; i < 137; i++) {
             const city = cities[i % 10];
-            FLEET_DATA[`loc_${i}`] = { title: `${city} Site ${100+i}`, badge: '<span class="risk-pill nominal">Nominal</span>', metric: '9 mph', metricLabel: 'Wind', status: 'nominal' };
+            FLEET_DATA[`loc_${i}`] = { 
+                title: `${city} Site ${100+i}`, 
+                badge: '<span class="risk-pill nominal">Nominal</span>', 
+                riskScore: Math.random() * 3,
+                metricValue: (Math.random() * 10 + 5).toFixed(1), 
+                metricLabel: metrics[i % 4],
+                trigger: metrics[i % 4],
+                status: 'nominal' 
+            };
         }
 
         let activeChart = null;
@@ -295,7 +388,39 @@
             element.addEventListener('transitionend', handle);
         }
 
+        function updateForecastWindow(val) {
+            forecastWindowHours = parseInt(val);
+            const label = val >= 24 ? (val / 24) + ' Days' : val + ' Hours';
+            document.getElementById('header-window-label').innerText = `${label} Horizon`;
+            
+            // Re-brief Altos
+            const chatMount = document.getElementById('chat-mount');
+            chatMount.innerHTML += `
+                <div class="flex space-x-4 lg:space-x-6 max-w-4xl mx-auto mb-10 mt-10">
+                    <div class="w-10 h-10 lg:w-12 lg:h-12 bg-[#0F172A] rounded-xl lg:rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                        <i data-lucide="bot" class="w-6 h-6 lg:w-7 lg:h-7 text-white"></i>
+                    </div>
+                    <div class="flex-1 overflow-hidden">
+                        <div class="p-1">
+                            <p class="text-slate-800 text-base lg:text-lg font-bold leading-relaxed">
+                                Understood. Adjusting global operational horizon to **${label}**. Re-synthesizing all 142 sites...
+                            </p>
+                            <p class="text-sm text-slate-500 mt-2 italic">Severity thresholds in the Risk Matrix and Fleet Status have been recalibrated for the extended period.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+            scrollChat();
+            
+            // Update active views if open
+            if (currentView !== 'chat') {
+                toggleContext(currentView);
+            }
+        }
+
         function switchTab(tab) {
+            currentView = tab;
             const chatWindow = document.getElementById('main-chat');
             const panel = document.getElementById('context-panel');
             const btns = document.querySelectorAll('.nav-btn');
@@ -325,9 +450,12 @@
             panel.classList.remove('hidden-panel');
             content.innerHTML = '';
             
+            const label = forecastWindowHours >= 24 ? (forecastWindowHours / 24) + '-Day Horizon' : forecastWindowHours + '-Hour Horizon';
+
             if (type === 'matrix') {
                 title.innerText = 'Risk Priority Matrix';
                 content.innerHTML = document.getElementById('tpl-matrix').innerHTML;
+                document.getElementById('matrix-window-label').innerText = label;
                 populateMatrixPoints();
                 if (isHidden) {
                     onTransitionEnd(panel, () => renderFleetDistribution());
@@ -337,13 +465,62 @@
             } else if (type === 'fleet') {
                 title.innerText = 'Fleet Status';
                 content.innerHTML = document.getElementById('tpl-fleet').innerHTML;
+                document.getElementById('fleet-window-indicator').innerText = label.toUpperCase();
                 populateFleetTable();
             } else if (type === 'insights') {
                 title.innerText = 'Historical Explorer';
                 content.innerHTML = document.getElementById('tpl-explorer').innerHTML;
+                document.getElementById('explorer-window-label').innerText = label;
                 populateExplorerSelect();
             }
             if (window.lucide) lucide.createIcons();
+        }
+
+        function filterFleetTable(val) {
+            fleetFilter = val.toLowerCase();
+            populateFleetTable();
+        }
+
+        function sortFleet(key) {
+            if (fleetSortKey === key) {
+                fleetSortDir *= -1;
+            } else {
+                fleetSortKey = key;
+                fleetSortDir = -1;
+            }
+            populateFleetTable();
+        }
+
+        function populateFleetTable() {
+            const tbody = document.getElementById('fleet-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const keys = Object.keys(FLEET_DATA)
+                .filter(k => FLEET_DATA[k].title.toLowerCase().includes(fleetFilter) || FLEET_DATA[k].trigger.toLowerCase().includes(fleetFilter))
+                .sort((a,b) => {
+                    const valA = FLEET_DATA[a][fleetSortKey];
+                    const valB = FLEET_DATA[b][fleetSortKey];
+                    if (typeof valA === 'string') {
+                        return valA.localeCompare(valB) * fleetSortDir;
+                    }
+                    return (valA - valB) * fleetSortDir;
+                });
+
+            keys.forEach(k => {
+                const l = FLEET_DATA[k];
+                const tr = document.createElement('tr');
+                tr.className = 'location-row border-b border-slate-50 transition-colors';
+                tr.onclick = () => openLocationDetail(k);
+                tr.innerHTML = `
+                    <td class="px-4 py-4 font-bold text-slate-700">${l.title}</td>
+                    <td class="px-4 py-4">${l.badge}</td>
+                    <td class="px-4 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">${l.trigger}</td>
+                    <td class="px-4 py-4 text-right font-black text-slate-600">${l.metricValue}${l.metricLabel === 'Wind Gust' ? ' mph' : (l.metricLabel === 'Precipitation' ? ' in' : '')}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
         }
 
         function renderFleetDistribution() {
@@ -353,12 +530,17 @@
             const canvas = document.getElementById('fleetDistChart');
             const ctx = canvas.getContext('2d');
             
+            // Artificial scaling based on window
+            const scale = forecastWindowHours / 24;
+            const criticalCount = Math.ceil(2 * scale);
+            const warningCount = Math.ceil(3 * scale);
+
             new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: ['Critical', 'Warning', 'Nominal'],
                     datasets: [{
-                        data: [2, 3, 137],
+                        data: [criticalCount, warningCount, 142 - criticalCount - warningCount],
                         backgroundColor: ['#EF4444', '#F97316', '#10B981'],
                         borderRadius: 8,
                         barThickness: 50
@@ -390,27 +572,10 @@
             });
         }
 
-        function populateFleetTable() {
-            const tbody = document.getElementById('fleet-table-body');
-            if (!tbody) return;
-            const keys = Object.keys(FLEET_DATA).sort((a,b) => {
-                const rA = FLEET_DATA[a].badge.includes('critical') ? 2 : (FLEET_DATA[a].badge.includes('warning') ? 1 : 0);
-                const rB = FLEET_DATA[b].badge.includes('critical') ? 2 : (FLEET_DATA[b].badge.includes('warning') ? 1 : 0);
-                return rB - rA;
-            });
-            keys.forEach(k => {
-                const l = FLEET_DATA[k];
-                const tr = document.createElement('tr');
-                tr.className = 'location-row border-b border-slate-50';
-                tr.onclick = () => openLocationDetail(k);
-                tr.innerHTML = `<td class="px-4 py-4 font-bold text-slate-700">${l.title}</td><td class="px-4 py-4">${l.badge}</td><td class="px-4 py-4 text-right font-bold text-slate-500">${l.metric}</td>`;
-                tbody.appendChild(tr);
-            });
-        }
-
         function populateExplorerSelect() {
             const sel = document.getElementById('explorer-select');
             if (!sel) return;
+            sel.innerHTML = '<option value="">-- Choose a Location --</option>';
             Object.keys(CORE_RISKS).forEach(k => {
                 const opt = document.createElement('option');
                 opt.value = k; opt.innerText = CORE_RISKS[k].title;
@@ -425,7 +590,7 @@
             if (!data || !content || !panel) return;
 
             if (!data.forecast) {
-                content.innerHTML = `<div class="p-12 text-center text-slate-400 font-bold"> telemetry for nominal sites is currently archived. No anomalies detected.</div>`;
+                content.innerHTML = `<div class="p-12 text-center text-slate-400 font-bold">Telemetry for nominal sites is currently archived. No anomalies detected in the chosen horizon.</div>`;
                 return;
             }
 
@@ -437,15 +602,16 @@
             const viz = document.getElementById('explorer-viz');
             if (viz) {
                 viz.classList.remove('hidden');
-                document.getElementById('explorer-guidance-box').innerHTML = `<p class="text-sm font-bold text-blue-400 uppercase mb-2">Mitigation Guidance</p><p class="text-sm">${data.guidance}</p>`;
+                document.getElementById('explorer-guidance-box').innerHTML = `<p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Horizon-Specific Guidance</p><p class="text-sm text-slate-300">${data.guidance}</p>`;
             } else {
                 content.innerHTML = `
                     <div class="space-y-6 animate-in fade-in duration-500">
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="glass-card p-5"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Peak Forecast</p><p class="text-2xl font-black text-slate-900">${data.metric}</p></div>
-                            <div class="glass-card p-5"><p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Prob</p><p class="text-2xl font-black text-slate-900">${data.prob}%</p></div>
+                            <div class="glass-card p-5"><p class="text-[9px] font-black text-slate-400 uppercase mb-1">Peak Forecast</p><p class="text-2xl font-black text-slate-900">${data.metricValue}</p><p class="text-[9px] font-bold text-slate-500 uppercase">${data.metricLabel}</p></div>
+                            <div class="glass-card p-5"><p class="text-[9px] font-black text-slate-400 uppercase mb-1">Anomaly</p><p class="text-2xl font-black text-red-600">+4.2σ</p><p class="text-[9px] font-bold text-slate-500 uppercase">Critical Threshold</p></div>
                         </div>
                         <div class="glass-card p-6">
+                            <h4 class="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">Horizon Forecast: ${forecastWindowHours}h</h4>
                             <div class="chart-container" id="loc-chart-mount"></div>
                         </div>
                         <div class="p-6 bg-[#0F172A] text-white rounded-3xl" id="guidance-box"><p class="text-sm">${data.guidance}</p></div>
@@ -455,7 +621,6 @@
 
             if (window.lucide) lucide.createIcons();
             
-            // Handle rendering based on panel state
             if (isHidden) {
                 onTransitionEnd(panel, () => renderLocChart(data));
             } else {
@@ -467,13 +632,18 @@
             const mount = document.getElementById('loc-chart-mount');
             if (!mount || typeof Chart === 'undefined') return;
             
-            // Critical: Wipe canvas container to force a fresh Chart.js instance
             mount.innerHTML = '<canvas id="locChart"></canvas>';
             const canvas = document.getElementById('locChart');
             const ctx = canvas.getContext('2d');
             
             const color = data.badge.includes('critical') ? '#EF4444' : '#F97316';
-            const labels = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
+            
+            // Adjust labels for horizon
+            let labels = [];
+            const step = forecastWindowHours / 8;
+            for(let h=0; h<forecastWindowHours; h+=step) {
+                labels.push(h === 0 ? 'Now' : '+' + Math.round(h) + 'h');
+            }
             
             new Chart(ctx, {
                 type: 'line',
@@ -481,7 +651,7 @@
                     labels: labels,
                     datasets: [
                         { 
-                            label: 'V4 Forecast', 
+                            label: 'Forecast', 
                             data: data.forecast, 
                             borderColor: color, 
                             borderWidth: 5, 
@@ -489,13 +659,12 @@
                             fill: true, 
                             backgroundColor: color + '22',
                             pointRadius: 6,
-                            pointHoverRadius: 8,
                             pointBackgroundColor: '#FFFFFF',
                             pointBorderColor: color,
                             pointBorderWidth: 2
                         },
                         { 
-                            label: 'Historical Climatology', 
+                            label: '10Y Norm', 
                             data: data.avg, 
                             borderColor: '#94A3B8', 
                             borderDash: [8, 4], 
@@ -514,21 +683,18 @@
                         legend: { display: false },
                         tooltip: { 
                             enabled: true,
-                            backgroundColor: '#0F172A',
-                            titleFont: { size: 11 },
-                            bodyFont: { size: 11 },
-                            padding: 10
+                            backgroundColor: '#0F172A'
                         }
                     }, 
                     scales: { 
                         y: { 
                             beginAtZero: true, 
-                            grid: { color: '#F1F5F9', drawTicks: false }, 
-                            ticks: { font: { weight: 'bold', size: 10 }, color: '#64748B', padding: 10 } 
+                            grid: { color: '#F1F5F9' }, 
+                            ticks: { font: { weight: 'bold', size: 10 }, color: '#64748B' } 
                         }, 
                         x: { 
                             grid: { display: false }, 
-                            ticks: { font: { weight: 'bold', size: 10 }, color: '#64748B', padding: 10 } 
+                            ticks: { font: { weight: 'bold', size: 10 }, color: '#64748B' } 
                         } 
                     } 
                 }
@@ -538,7 +704,7 @@
         function closeContext() { switchTab('chat'); }
 
         function simulateAltos() {
-            const txt = "Morning. I've synthesized risks for 142 locations. 5 require immediate mitigation guidance due to significant threshold breaches.";
+            const txt = "Morning. I've synthesized risks across your 142 locations for the active 24-hour horizon. I've identified 5 primary sites where operational thresholds will be breached.";
             const target = document.getElementById('initial-text');
             if (!target) return;
             let i = 0;
@@ -552,9 +718,18 @@
                         container.classList.remove('hidden');
                         Object.keys(CORE_RISKS).forEach(k => {
                             const d = CORE_RISKS[k];
-                            container.innerHTML += `<button onclick="openLocationDetail('${k}')" class="text-left bg-white border border-slate-100 p-5 rounded-2xl hover:border-blue-200 transition-all flex flex-col group"><div class="flex justify-between items-start mb-4"><div class="p-2 bg-slate-50 text-slate-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors"><i data-lucide="${d.icon}" class="w-5 h-5"></i></div>${d.badge}</div><h4 class="font-bold text-slate-900">${d.title}</h4></button>`;
+                            container.innerHTML += `
+                                <button onclick="openLocationDetail('${k}')" class="text-left bg-white border border-slate-100 p-5 rounded-2xl hover:border-blue-200 transition-all flex flex-col group animate-in slide-in-from-bottom-2 duration-300">
+                                    <div class="flex justify-between items-start mb-4">
+                                        <div class="p-2 bg-slate-50 text-slate-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors"><i data-lucide="${d.icon}" class="w-5 h-5"></i></div>
+                                        ${d.badge}
+                                    </div>
+                                    <h4 class="font-bold text-slate-900">${d.title}</h4>
+                                    <p class="text-[10px] text-slate-400 font-black uppercase mt-1">${d.trigger} Breach</p>
+                                </button>`;
                         });
                     }
+                    document.getElementById('initial-shortcuts')?.classList.remove('hidden');
                     document.getElementById('additional-briefing')?.classList.remove('hidden');
                     if (window.lucide) lucide.createIcons();
                     scrollChat();
@@ -565,11 +740,55 @@
         function handleSendMessage() {
             const inp = document.getElementById('chat-input');
             if (!inp || !inp.value.trim()) return;
+            const text = inp.value.trim();
+            
             const mount = document.getElementById('chat-mount');
             if (mount) {
-                mount.innerHTML += `<div class="flex justify-end mb-8 max-w-4xl mx-auto"><div class="bg-blue-600 text-white p-6 rounded-[2rem] rounded-tr-none shadow-xl text-base font-semibold max-w-[80%]">${inp.value}</div></div>`;
+                mount.innerHTML += `<div class="flex justify-end mb-8 max-w-4xl mx-auto"><div class="bg-blue-600 text-white p-6 rounded-[2rem] rounded-tr-none shadow-xl text-base font-semibold max-w-[80%]">${text}</div></div>`;
                 inp.value = ''; 
                 scrollChat();
+
+                // Mock Reply
+                setTimeout(() => {
+                    const id = 'ai-' + Date.now();
+                    mount.innerHTML += `
+                        <div class="flex space-x-4 lg:space-x-6 max-w-4xl mx-auto mb-10">
+                            <div class="w-10 h-10 lg:w-12 lg:h-12 bg-[#0F172A] rounded-xl lg:rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                                <i data-lucide="bot" class="w-6 h-6 lg:w-7 lg:h-7 text-white"></i>
+                            </div>
+                            <div class="flex-1 overflow-hidden">
+                                <p id="${id}" class="text-slate-800 text-base lg:text-lg font-semibold leading-relaxed altos-typing"></p>
+                                <div id="${id}-actions" class="mt-4 hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                    <button onclick="toggleContext('matrix')" class="text-xs font-bold text-blue-600 hover:underline">View Updated Matrix →</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    if (window.lucide) lucide.createIcons();
+                    
+                    let reply = "I am processing that request using the current " + forecastWindowHours + "-hour telemetry. For the chosen window, Miami wind gusts remain the highest operational priority. Should I generate the logistics-impact report for your port director?";
+                    
+                    let c = 0; 
+                    const interval = setInterval(() => {
+                        const el = document.getElementById(id);
+                        if(!el) return;
+                        el.innerText += reply.charAt(c); 
+                        c++;
+                        if (c >= reply.length) { 
+                            clearInterval(interval); 
+                            el.classList.remove('altos-typing'); 
+                            document.getElementById(id + '-actions').classList.remove('hidden');
+                            scrollChat(); 
+                        }
+                    }, 10);
+                }, 1000);
+            }
+        }
+
+        function sendShortcut(text) {
+            const inp = document.getElementById('chat-input');
+            if (inp) {
+                inp.value = text;
+                handleSendMessage();
             }
         }
 
